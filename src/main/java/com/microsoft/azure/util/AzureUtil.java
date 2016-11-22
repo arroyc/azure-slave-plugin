@@ -15,9 +15,17 @@
  */
 package com.microsoft.azure.util;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+import com.microsoft.azure.exceptions.AzureCloudException;
+import hudson.security.ACL;
 import java.text.Format;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
+import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 
 public class AzureUtil {
@@ -341,5 +349,51 @@ public class AzureUtil {
         return String.format("%s%s", getShortenedTemplateName(templateName, osType, 
             Constants.VM_NAME_HASH_LENGTH, numberOfDigits), 
                 shortenedDeploymentHash);
+    }
+    
+    public static StandardUsernamePasswordCredentials getCredentials(String credentialsId) throws AzureCloudException {
+        // Grab the pass
+        StandardUsernamePasswordCredentials creds = CredentialsMatchers.firstOrNull(CredentialsProvider.lookupCredentials(
+            StandardUsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM,
+                Collections.<DomainRequirement>emptyList()),
+            CredentialsMatchers.withId(credentialsId));
+
+        if (creds == null) {
+            throw new AzureCloudException("Could not find credentials with id: " + credentialsId);
+        }
+        
+        return creds;
+    }
+    
+    /**
+     * Checks if the ResourceGroup Name is valid with Azure Standards
+     * @param resourceGroupName Resource Group Name
+     * @return true if the name is valid else return false
+     */
+    public static boolean isValidResourceGroupName(String resourceGroupName) {
+        if (resourceGroupName.matches(Constants.DEFAULT_RESOURCE_GROUP_PATTERN))
+            return true;
+        return false;
+    }
+    /**
+     * Checks if the maximum virtual machines limit is valid
+     * @param maxVMLimit Maximum Virtual Limit
+     * @return true if it is valid else return false
+     */
+    public static boolean isValidMAxVMLimit(String maxVMLimit) {
+        if (StringUtils.isBlank(maxVMLimit) || !maxVMLimit.matches(Constants.REG_EX_DIGIT))
+            return false;
+        return true;
+    }
+    /**
+     * Checks if the deployment Timeout is valid
+     * @param deploymentTimeout Deployment Timeout
+     * @return true if it is valid else return false
+     */
+    public static boolean isValidTimeOut(String deploymentTimeout) {
+        if ((StringUtils.isBlank(deploymentTimeout) || !deploymentTimeout.matches(Constants.REG_EX_DIGIT)
+                || Integer.parseInt(deploymentTimeout) < Constants.DEFAULT_DEPLOYMENT_TIMEOUT_SEC))
+            return false;
+        return true;
     }
 }
